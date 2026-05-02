@@ -1,0 +1,12 @@
+/target
+runs/
+.env
+.env.*
+!.env.example
+.codex
+.claude/
+.DS_Store
+*.log
+*.tmp
+*.swp
+*~
