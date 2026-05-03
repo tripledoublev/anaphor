@@ -1,83 +1,121 @@
 # Anaphor
 
-A minimal Rust CLI tool for resolving terminal context using LLMs.
+A minimal terminal context resolver. Ask in natural language; Anaphor gathers the relevant context and answers with an LLM.
 
-## Run
+## Why the name?
 
-Works anywhere Rust/Cargo is available:
+In linguistics, *anaphora* is an expression whose meaning depends on another expression in context. Anaphor does the same for terminal questions: it finds the antecedent context needed to answer.
 
-```bash
-cargo run -- "summarize the readme"
-```
+## How it works
 
-On Linux/macOS, build once and install shell commands:
+You ask a question. Anaphor:
 
-```bash
-cargo build --release
-mkdir -p ~/.local/bin
-ln -sf "$PWD/target/release/anaphor" ~/.local/bin/anaphor
-ln -sf "$PWD/target/release/anaphor" ~/.local/bin/a
-```
+1. Plans which tools to use (web search, fetch URL, read file, or none)
+2. Gathers context from selected sources
+3. Provides an LLM-powered answer grounded in that context
 
-Make sure `~/.local/bin` is on your `PATH`. After that, use `anaphor` or the shorter `a` from any shell:
+No source-selection flags. Just natural language.
 
 ```bash
+anaphor "what is rust-lang.org about?"
+# recognizes a URL, fetches it, and answers about the page
+
+anaphor "find me links about axum"
+# recognizes search intent and returns links with summaries
+
 anaphor "summarize the readme"
-a "summarize the readme"
+# recognizes a file reference, reads README.md, and summarizes it
 ```
+
+## Prerequisites
+
+- **Rust 1.70+** — to build from source
+- **OpenRouter API key** — required, free tier at https://openrouter.ai
+- **Brave Search API key** — optional, free tier at https://api.search.brave.com, only needed for web search
+- **Internet connection** — for API calls (30s timeout for web/URLs, 90s for LLM)
 
 ## Setup
 
-1. Copy `.env.example` to `.env`:
+1. Run from source:
    ```bash
-   cp .env.example .env
+   cargo run -- "summarize the readme"
    ```
 
-2. Get API keys:
-   - OpenRouter: https://openrouter.ai (free tier available)
-   - Brave Search: https://api.search.brave.com (free tier available)
+2. Or build once:
+   ```bash
+   cargo build --release
+   ```
 
-3. Fill in your `.env` file with your API keys
+3. Optional: install commands on Linux/macOS:
+   ```bash
+   mkdir -p ~/.local/bin
+   ln -sf "$PWD/target/release/anaphor" ~/.local/bin/anaphor
+   ln -sf "$PWD/target/release/anaphor" ~/.local/bin/a
+   ```
+   Ensure `~/.local/bin` is on `$PATH`. Then use `anaphor` or the shorter `a`.
+
+4. Configure:
+   ```bash
+   cp .env.example .env
+   # Fill in OPENROUTER_API_KEY (required) and BRAVE_API_KEY (optional)
+   ```
+
+5. Test:
+   ```bash
+   cargo run -- "what is Rust?"
+   ```
 
 ## Usage
 
-Ask questions with context from various sources:
-
 ```bash
-# Direct question
+# Direct question (no tools needed)
 cargo run -- "what is WAL mode in sqlite?"
 
-# Web search chosen automatically
+# Web search (auto-detected)
 cargo run -- "find me links about the axum web framework"
 
-# Fetch a URL chosen automatically
+# Fetch URL (auto-detected)
 cargo run -- "what is rust-lang.org about?"
 
-# Read a local file chosen automatically
+# Read file (auto-detected)
 cargo run -- "summarize the readme"
 
-# Stdin
+# Stdin (auto-included)
 cat notes.md | cargo run -- "extract action items"
 ```
 
-## Environment Variables
+If you installed the command, replace `cargo run --` with `anaphor` or `a`.
 
-- `OPENROUTER_API_KEY` — required for LLM calls
-- `BRAVE_API_KEY` — required when Anaphor chooses web search
-- `ANAPHOR_MODEL` — optional, defaults to `openai/gpt-4o-mini`
-- `ANAPHOR_MAX_CHARS` — optional total context character budget, defaults to `30000`
+## Configuration
 
-### OpenRouter Models
+Environment variables (set in `.env` or shell):
 
-You can use any OpenRouter model. Some cheap options:
-- `openai/gpt-4o-mini` — excellent quality, very cheap
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `OPENROUTER_API_KEY` | Yes | — | Get at https://openrouter.ai |
+| `BRAVE_API_KEY` | No | — | Get at https://api.search.brave.com (only needed for web search) |
+| `ANAPHOR_MODEL` | No | `openai/gpt-4o-mini` | Any OpenRouter model ID |
+| `ANAPHOR_MAX_CHARS` | No | `30000` | Total context budget across all sources |
+
+### Recommended models
+
+- `openai/gpt-4o-mini` — best quality, very cheap
 - `google/gemini-flash-1.5` — fast and cheap
 - `meta-llama/llama-3-8b-instruct` — fast and free
 
-## Interface
+## Tools
 
-Anaphor intentionally has no source-selection flags. Ask in natural language and it will choose from three internal tools:
+Anaphor automatically routes to three internal tools based on your question:
 
-- `search_web` — searches Brave for links and snippets
-- `read_url` — fetches a URL or bare domain
-- `read_file` — reads a local file from the current working directory
+- **search_web** — "find links about X", "search for Y"
+- **read_url** — "what is example.com?", "summarize rust-lang.org"
+- **read_file** — "summarize README", "what's in Cargo.toml?"
+
+No flags. No syntax to learn. Just ask.
+
+## Security
+
+- File reads are sandboxed to the current working directory
+- HTTP requests timeout (30s for web/URLs, 90s for LLM) to prevent hanging
+- Tool errors are sanitized before being sent to the LLM
+- Context is truncated to your budget (default 30KB) to manage API costs
