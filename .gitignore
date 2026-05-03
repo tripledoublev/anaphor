@@ -1,8 +1,13 @@
+# Build outputs
 /target
 runs/
+
+# Local secrets
 .env
 .env.*
 !.env.example
+
+# Local agent/editor state
 .codex
 .claude/
 .DS_Store
