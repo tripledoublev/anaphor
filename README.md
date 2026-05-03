@@ -2,10 +2,28 @@
 
 A minimal Rust CLI tool for resolving terminal context using LLMs.
 
-## Installation
+## Run
+
+Works anywhere Rust/Cargo is available:
+
+```bash
+cargo run -- "summarize the readme"
+```
+
+On Linux/macOS, build once and install shell commands:
 
 ```bash
 cargo build --release
+mkdir -p ~/.local/bin
+ln -sf "$PWD/target/release/anaphor" ~/.local/bin/anaphor
+ln -sf "$PWD/target/release/anaphor" ~/.local/bin/a
+```
+
+Make sure `~/.local/bin` is on your `PATH`. After that, use `anaphor` or the shorter `a` from any shell:
+
+```bash
+anaphor "summarize the readme"
+a "summarize the readme"
 ```
 
 ## Setup
@@ -27,19 +45,19 @@ Ask questions with context from various sources:
 
 ```bash
 # Direct question
-anaphor "what is WAL mode in sqlite?"
+cargo run -- "what is WAL mode in sqlite?"
 
 # Web search chosen automatically
-anaphor "find me links about the axum web framework"
+cargo run -- "find me links about the axum web framework"
 
 # Fetch a URL chosen automatically
-anaphor "what is rust-lang.org about?"
+cargo run -- "what is rust-lang.org about?"
 
 # Read a local file chosen automatically
-anaphor "summarize the readme"
+cargo run -- "summarize the readme"
 
 # Stdin
-cat notes.md | anaphor "extract action items"
+cat notes.md | cargo run -- "extract action items"
 ```
 
 ## Environment Variables
