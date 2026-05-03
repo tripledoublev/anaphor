@@ -2,9 +2,6 @@ use anyhow::{anyhow, Result};
 use reqwest::Client;
 use std::time::Duration;
 
-pub(crate) const HTTP_TIMEOUT_SECS: u64 = 30;
-pub(crate) const LLM_TIMEOUT_SECS: u64 = 90;
-
 pub(crate) fn default_max_chars() -> usize {
     std::env::var("ANAPHOR_MAX_CHARS")
         .ok()

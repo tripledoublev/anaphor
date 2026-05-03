@@ -1,4 +1,5 @@
-use crate::config::{http_client, HTTP_TIMEOUT_SECS};
+use crate::config::http_client;
+use crate::constants::HTTP_TIMEOUT_SECS;
 use crate::types::{ContextBlock, SearchResult, ToolRequest};
 use anyhow::{anyhow, Result};
 use serde_json::Value;

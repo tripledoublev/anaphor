@@ -1,12 +1,10 @@
-use crate::config::{http_client, openrouter_api_key, LLM_TIMEOUT_SECS};
+use crate::config::{http_client, openrouter_api_key};
+use crate::constants::{ANSWERER_SYSTEM_PROMPT, LLM_TIMEOUT_SECS, PLANNER_SYSTEM_PROMPT};
 use crate::tools::{normalize_file_path, normalize_url};
 use crate::types::ToolRequest;
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use serde_json::{json, Value};
-
-const PLANNER_SYSTEM_PROMPT: &str = "You are Anaphor's tool router. Select zero or more tools needed to answer the user's request.\n\nUse read_file for local file requests like README, Cargo.toml, or source files.\nUse read_url when the request names a URL or bare domain; normalize bare domains to https://.\nUse search_web when the user asks to find links, search the web, or asks about current/external information without naming a specific URL. Do not use search_web for requests that name a specific URL or domain.\nIf no tool is needed, answer without tool calls.";
-const ANSWERER_SYSTEM_PROMPT: &str = "You are Anaphor, a compact terminal context resolver.\n\nAnswer the user's question using the provided context.\nIf sources are provided, cite them numerically using their URLs or source labels.\nDo not invent sources.\nIf the context is insufficient, say so.\nBe concise, technical, and direct.\nFor structured answers, use compact Markdown: headings with ###, bullets with -, inline code with backticks, and bold labels with **label**.";
 
 #[derive(Debug, Deserialize)]
 struct ChatResponse {
