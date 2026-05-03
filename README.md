@@ -1,9 +1,7 @@
 # Anaphor
 
 A minimal terminal context resolver. Ask in natural language; Anaphor gathers the relevant context and answers with an LLM.
-
-## Why the name?
-
+  
 In linguistics, *anaphora* is an expression whose meaning depends on another expression in context. Anaphor does the same for terminal questions: it finds the antecedent context needed to answer.
 
 ## How it works
