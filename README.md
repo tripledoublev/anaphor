@@ -28,7 +28,7 @@ anaphor "summarize the readme"
 ## Prerequisites
 
 - **Rust 1.70+** — to build from source
-- **OpenRouter API key** — required, free tier at https://openrouter.ai
+- **LLM API access** — OpenRouter by default, or a GLM/OpenAI-compatible endpoint
 - **Brave Search API key** — optional, free tier at https://api.search.brave.com, only needed for web search
 - **Internet connection** — for API calls (30s timeout for web/URLs, 90s for LLM)
 
@@ -55,7 +55,7 @@ anaphor "summarize the readme"
 4. Configure:
    ```bash
    cp .env.example .env
-   # Fill in OPENROUTER_API_KEY (required) and BRAVE_API_KEY (optional)
+   # Fill in OPENROUTER_API_KEY for the default provider, or configure another provider
    ```
 
 5. Test:
@@ -90,14 +90,30 @@ Environment variables (set in `.env` or shell):
 
 | Variable | Required | Default | Notes |
 |----------|----------|---------|-------|
-| `OPENROUTER_API_KEY` | Yes | — | Get at https://openrouter.ai |
+| `OPENROUTER_API_KEY` | Default provider | — | Get at https://openrouter.ai |
+| `ANAPHOR_PROVIDER` | No | `openrouter` | Use `openrouter`, `glm`, `openai`, or `custom` |
+| `ANAPHOR_API_KEY` | Custom/GLM | — | API key for OpenAI-compatible endpoints; `custom` requires this, `openai` may also use `OPENAI_API_KEY`, and GLM also checks `ZHIPU_API_KEY` plus `~/.config/v100/config.toml` |
+| `ANAPHOR_BASE_URL` | Custom | — | OpenAI-compatible base URL, for example `https://api.example.com/v1` |
 | `BRAVE_API_KEY` | No | — | Get at https://api.search.brave.com (only needed for web search) |
-| `ANAPHOR_MODEL` | No | `openai/gpt-4o-mini` | Any OpenRouter model ID |
+| `ANAPHOR_MODEL` | No | `openai/gpt-4o-mini` | Model ID for OpenRouter/OpenAI-compatible providers |
+| `ANAPHOR_GLM_MODEL` | No | `glm-5.1` | Used only with `ANAPHOR_PROVIDER=glm` |
 | `ANAPHOR_MAX_CHARS` | No | `30000` | Total context budget across all sources |
+
+### Direct GLM
+
+If you have the v100 GLM config locally, Anaphor can use it directly:
+
+```bash
+ANAPHOR_PROVIDER=glm anaphor "what is Rust?"
+```
+
+This uses `https://api.z.ai/api/coding/paas/v4`, model `glm-5.1`, and reads `providers.glm.auth.key` from `~/.config/v100/config.toml` when no GLM key is set in the environment.
 
 ### Recommended models
 
 - `openai/gpt-4o-mini` — best quality, very cheap
+- `z-ai/glm-5.1` — strong OpenRouter GLM option with tool support
+- `glm-5.1` — direct GLM/Z.ai subscription option
 - `google/gemini-flash-1.5` — fast and cheap
 - `meta-llama/llama-3-8b-instruct` — fast and free
 

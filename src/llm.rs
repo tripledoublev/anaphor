@@ -1,4 +1,4 @@
-use crate::config::{http_client, openrouter_api_key};
+use crate::config::{http_client, LlmEndpoint};
 use crate::constants::{ANSWERER_SYSTEM_PROMPT, LLM_TIMEOUT_SECS, PLANNER_SYSTEM_PROMPT};
 use crate::tools::{normalize_file_path, normalize_url};
 use crate::types::ToolRequest;
@@ -92,18 +92,42 @@ fn tool_definitions() -> Value {
     ])
 }
 
-async fn post_openrouter(body: Value) -> Result<ChatMessage> {
-    let api_key = openrouter_api_key()?;
+async fn post_chat(endpoint: &LlmEndpoint, body: Value) -> Result<ChatMessage> {
     let client = http_client(LLM_TIMEOUT_SECS)?;
+    let model = body
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or(&endpoint.model);
 
     let resp = client
-        .post("https://openrouter.ai/api/v1/chat/completions")
-        .header("Authorization", format!("Bearer {}", api_key))
+        .post(&endpoint.chat_url)
+        .header("Authorization", format!("Bearer {}", endpoint.api_key))
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
-        .await?
-        .error_for_status()?;
+        .await?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let error_body = resp.text().await.unwrap_or_default();
+        let detail = provider_error_message(&error_body)
+            .map(|message| format!(": {message}"))
+            .unwrap_or_default();
+        let hint = if status.as_u16() == 404 {
+            " (check the configured provider/model)"
+        } else {
+            ""
+        };
+
+        return Err(anyhow!(
+            "{} request failed for model '{}': {}{}{}",
+            endpoint.provider,
+            model,
+            status,
+            detail,
+            hint
+        ));
+    }
 
     let data: ChatResponse = resp.json().await?;
     data.choices
@@ -113,9 +137,21 @@ async fn post_openrouter(body: Value) -> Result<ChatMessage> {
         .ok_or_else(|| anyhow!("LLM response did not include any choices"))
 }
 
-pub(crate) async fn plan_tools(model: &str, question: &str) -> Result<Vec<ToolRequest>> {
+fn provider_error_message(body: &str) -> Option<String> {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|json| {
+            json.pointer("/error/message")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .map(|message| message.trim().to_string())
+        .filter(|message| !message.is_empty())
+}
+
+pub(crate) async fn plan_tools(endpoint: &LlmEndpoint, question: &str) -> Result<Vec<ToolRequest>> {
     let body = json!({
-        "model": model,
+        "model": endpoint.model,
         "messages": [
             {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
             {"role": "user", "content": question}
@@ -124,7 +160,7 @@ pub(crate) async fn plan_tools(model: &str, question: &str) -> Result<Vec<ToolRe
         "tool_choice": "auto"
     });
 
-    let message = post_openrouter(body).await?;
+    let message = post_chat(endpoint, body).await?;
     Ok(parse_tool_requests(message.tool_calls.as_deref()))
 }
 
@@ -169,16 +205,16 @@ fn parse_tool_requests(tool_calls: Option<&[OpenRouterToolCall]>) -> Vec<ToolReq
     requests
 }
 
-pub(crate) async fn call_llm(model: &str, prompt: &str) -> Result<String> {
+pub(crate) async fn call_llm(endpoint: &LlmEndpoint, prompt: &str) -> Result<String> {
     let body = json!({
-        "model": model,
+        "model": endpoint.model,
         "messages": [
             {"role": "system", "content": ANSWERER_SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
         ]
     });
 
-    let message = post_openrouter(body).await?;
+    let message = post_chat(endpoint, body).await?;
     let text = message
         .content
         .ok_or_else(|| anyhow!("LLM response did not include text content"))?;
@@ -248,5 +284,21 @@ mod tests {
 
         assert!(parse_tool_requests(Some(&tool_calls)).is_empty());
         assert!(parse_tool_requests(None).is_empty());
+    }
+
+    #[test]
+    fn formats_openrouter_error_body() {
+        let body = r#"{"error":{"message":"No endpoints found for baidu/cobuddy:free.","code":404},"user_id":"user_123"}"#;
+
+        assert_eq!(
+            provider_error_message(body).as_deref(),
+            Some("No endpoints found for baidu/cobuddy:free.")
+        );
+    }
+
+    #[test]
+    fn ignores_missing_openrouter_error_message() {
+        assert!(provider_error_message("{}").is_none());
+        assert!(provider_error_message("not json").is_none());
     }
 }
