@@ -8,7 +8,7 @@ mod types;
 
 use anyhow::Result;
 use clap::Parser;
-use config::{default_max_chars, default_model};
+use config::{default_max_chars, llm_endpoint};
 use llm::{call_llm, plan_tools};
 use prompt::build_prompt;
 use render::{render_markdownish, should_color};
@@ -40,7 +40,6 @@ async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     let cli = Cli::parse();
 
-    let model = default_model();
     let max_chars = default_max_chars();
     let mut contexts: Vec<ContextBlock> = Vec::new();
 
@@ -70,10 +69,11 @@ async fn main() -> Result<()> {
         std::process::exit(1);
     };
 
-    let requests = plan_tools(&model, &question).await?;
+    let endpoint = llm_endpoint()?;
+    let requests = plan_tools(&endpoint, &question).await?;
     let contexts = gather_context(requests, contexts, max_chars).await;
     let prompt = build_prompt(&question, &contexts);
-    let answer = call_llm(&model, &prompt).await?;
+    let answer = call_llm(&endpoint, &prompt).await?;
 
     println!("{}", render_markdownish(&answer, should_color()));
 
